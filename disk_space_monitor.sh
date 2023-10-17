@@ -22,22 +22,24 @@ if [ $THRESHOLD -lt 0 ] || [ $THRESHOLD -gt 100 ]; then
     exit 1
 fi
 
-# Get the disk space usage
-USAGE=$(df --output=pcent,target | tail -n +2 | tr -dc '0-9\n' | awk -v threshold=$THRESHOLD '$1 > threshold {print $1, $2}')
+# Run the script in a loop
+while true; do
+    # Get the disk space usage
+    USAGE=$(df --output=pcent,target | tail -n +2 | tr -dc '0-9\n' | awk -v threshold=$THRESHOLD '$1 > threshold {print $1, $2}')
 
-# Check if any partition exceeds the threshold
-if [ -z "$USAGE" ]; then
-    echo "No partitions exceed the threshold."
-    exit 0
-fi
+    # Check if any partition exceeds the threshold
+    if [ -n "$USAGE" ]; then
+        # Send an email alert
+        echo -e "The following partitions exceed the disk space usage threshold of $THRESHOLD%:\n$USAGE" | mail -s "Disk Space Alert" $EMAIL
 
-# Send an email alert
-echo -e "The following partitions exceed the disk space usage threshold of $THRESHOLD%:\n$USAGE" | mail -s "Disk Space Alert" $EMAIL
+        # Check if the email was sent successfully
+        if [ $? -eq 0 ]; then
+            echo "Email alert sent successfully."
+        else
+            echo "Error: Failed to send email alert."
+        fi
+    fi
 
-# Check if the email was sent successfully
-if [ $? -eq 0 ]; then
-    echo "Email alert sent successfully."
-else
-    echo "Error: Failed to send email alert."
-    exit 1
-fi
+    # Wait for a specified amount of time before checking again
+    sleep 3600
+done
